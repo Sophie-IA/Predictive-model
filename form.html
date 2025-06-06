@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Customer Churn Prediction</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      background-color: #2e86de;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #1b4f72;
+    }
+
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      text-align: center;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Customer Churn Predictor</h2>
+    <form id="predictForm"></form>
+    <button type="submit" form="predictForm">Predict</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    const featureInfo = [
+      { name: "Gender", description: "Gender (0=Female, 1=Male)" },
+      { name: "SeniorCitizen", description: "Senior Citizen (0=No, 1=Yes)" },
+      { name: "Partner", description: "Partner Status (0=No, 1=Yes)" },
+      { name: "Dependents", description: "Dependents Status (0=No, 1=Yes)" },
+      { name: "Tenure", description: "Tenure (in months 0-72)" },
+      { name: "PhoneService", description: "Phone Service (0=No, 1=Yes)" },
+      { name: "MultipleLines", description: "Multiple Lines (0=No, 1=Yes, 2=No Phone Service)" },
+      { name: "InternetService", description: "Internet Service Type (0=DSL, 1=Fiber Optic, 2=None)" },
+      { name: "OnlineSecurity", description: "Online Security (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "OnlineBackup", description: "Online Backup (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "DeviceProtection", description: "Device Protection (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "TechSupport", description: "Tech Support (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "StreamingTV", description: "Streaming TV (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "StreamingMovies", description: "Streaming Movies (0=No, 1=Yes, 2=No Internet Service)" },
+      { name: "Contract", description: "Contract Type (0=Month-to-Month, 1=One Year, 2=Two Year)" },
+      { name: "PaperlessBilling", description: "Paperless Billing (0=No, 1=Yes)" },
+      { name: "PaymentMethod", description: "Payment Method (0=Electronic Check, 1=Mailed Check, 2=Bank Transfer, 3=Credit Card)" },
+      { name: "MonthlyCharges", description: "Monthly Charges (18.25 - 118.75)" },
+      { name: "TotalCharges", description: "Total Charges (18.8 - 8684.8)" }
+    ];
+
+    const categoricalOptions = {
+      Gender: ["Female", "Male"],
+      SeniorCitizen: ["No", "Yes"],
+      Partner: ["No", "Yes"],
+      Dependents: ["No", "Yes"],
+      PhoneService: ["No", "Yes"],
+      MultipleLines: ["No", "Yes", "No Phone Service"],
+      InternetService: ["DSL", "Fiber Optic", "None"],
+      OnlineSecurity: ["No", "Yes", "No Internet Service"],
+      OnlineBackup: ["No", "Yes", "No Internet Service"],
+      DeviceProtection: ["No", "Yes", "No Internet Service"],
+      TechSupport: ["No", "Yes", "No Internet Service"],
+      StreamingTV: ["No", "Yes", "No Internet Service"],
+      StreamingMovies: ["No", "Yes", "No Internet Service"],
+      Contract: ["Month-to-Month", "One Year", "Two Year"],
+      PaperlessBilling: ["No", "Yes"],
+      PaymentMethod: ["Electronic Check", "Mailed Check", "Bank Transfer", "Credit Card"]
+    };
+
+    const form = document.getElementById("predictForm");
+
+    featureInfo.forEach((feature, index) => {
+      const div = document.createElement("div");
+      div.className = "form-group";
+
+      const label = document.createElement("label");
+      label.setAttribute("for", `feature${index}`);
+      label.textContent = `${feature.name} - ${feature.description}`;
+      div.appendChild(label);
+
+      if (categoricalOptions[feature.name]) {
+        const select = document.createElement("select");
+        select.id = `feature${index}`;
+        select.name = feature.name;
+        select.required = true;
+
+        categoricalOptions[feature.name].forEach((opt, i) => {
+          const option = document.createElement("option");
+          option.value = i;
+          option.textContent = opt;
+          select.appendChild(option);
+        });
+
+        div.appendChild(select);
+      } else {
+        const input = document.createElement("input");
+        input.type = "number";
+        input.step = "any";
+        input.id = `feature${index}`;
+        input.name = feature.name;
+        input.placeholder = feature.description;
+        input.required = true;
+        div.appendChild(input);
+      }
+
+      form.appendChild(div);
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const features = [];
+
+      for (let i = 0; i < featureInfo.length; i++) {
+        const val = document.getElementById(`feature${i}`).value;
+        if (val === "") return alert("All fields are required.");
+        features.push(parseFloat(val));
+      }
+
+      document.getElementById("result").textContent = "Predicting...";
+
+      fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ features })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const result = `Prediction: ${data.prediction === 1 ? "Customer will churn" : "Customer will stay"}` +
+                       (data.probability !== undefined ? ` (Confidence: ${(data.probability * 100).toFixed(1)}%)` : "");
+        document.getElementById("result").textContent = result;
+      })
+      .catch(() => {
+        document.getElementById("result").textContent = "Error occurred. Please try again.";
+      });
+    });
+  </script>
+</body>
+</html>
